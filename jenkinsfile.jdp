@@ -1,0 +1,32 @@
+pipeline {
+    agent any
+    stages {
+        stage('Pull') {
+            steps {
+                git 'https://github.com/citb34/studentapp-ui.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh '/opt/maven/bin/mvn clean package'
+            }
+        }
+        stage('Test') {
+            steps {
+                withSonarQubeEnv(installationName: 'sonar', credentialsId: 'sonar-token') {
+                    sh '/opt/maven/bin/mvn sonar:sonar'
+                }
+            }
+        }
+        stage('QualityGate'){
+            steps {
+                waitForQualityGate abortPipeline: true, credentialsId: 'sonar-token'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                deploy adapters: [tomcat8(credentialsId: 'tomcat-cred', path: '', url: 'http://50.16.0.132:8080')], contextPath: '/', war: '**/*.war'
+            }
+        }
+    }
+}
